@@ -32,24 +32,39 @@ class App extends Component {
   async loadBlockchainData() {
     const web3 = window.web3
     //Load accounts
+    const accounts = await web3.eth.getAccounts()
+    this.setState({ account: accounts[0] })
     //Add first account the the state
 
     //Get network ID
+    const networkId = await web3.eth.net.getId()
     //Get network data
+    const networkData = DVideo.networks[networkId]
     //Check if net data exists, then
-      //Assign dvideo contract to a variable
-      //Add dvideo to the state
+    if(networkData) {
+      const dvideo = new web3.eth.Contract(DVideo.abi, networkData.address)
+      this.setState({ dvideo })
+      const videosCount = await dvideo.methods.videoCount().call()
+      this.setState({ videosCount })
 
-      //Check videoAmounts
-      //Add videAmounts to the state
+      // Load videos, sort by newest
+      for (var i = videosCount; i >= 1; i--) {
+        const video = await dvideo.methods.videos(i).call()
+        this.setState({
+          videos: [...this.state.videos, video]
+        })
+      }
 
-      //Iterate throught videos and add them to the state (by newest)
-
-
-      //Set latest video and it's title to view as default 
-      //Set loading state to false
-
-      //If network data doesn't exisits, log error
+      //Set latest video with title to view as default 
+      const latest = await dvideo.methods.videos(videosCount).call()
+      this.setState({
+        currentHash: latest.hash,
+        currentTitle: latest.title
+      })
+      this.setState({ loading: false})
+    } else {
+      window.alert('DVideo contract not deployed to detected network!')
+    }
   }
 
   //Get video
@@ -70,8 +85,14 @@ class App extends Component {
   constructor(props) {
     super(props)
     this.state = {
-      loading: false
-      //set states
+      // Set states
+      buffer: null,
+      account: '',
+      dvideo: null,
+      videos: [],
+      loading: true,
+      currentHash: null,
+      currentTitle: null
     }
 
     //Bind functions
@@ -82,6 +103,7 @@ class App extends Component {
       <div>
         <Navbar 
           //Account
+          account = { this.state.account }
         />
         { this.state.loading
           ? <div id="loader" className="text-center mt-5"><p>Loading...</p></div>
